@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import './App.css';
 import Login from './components/Login';
 import Register from './components/Register';
@@ -6,41 +7,27 @@ import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
 import api from './services/api';
 
-function App() {
-  const [currentPage, setCurrentPage] = useState('login');
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Check if user is already logged in
-    const token = localStorage.getItem('authToken');
-    const savedUser = localStorage.getItem('user');
-
-    if (token && savedUser) {
-      setUser(JSON.parse(savedUser));
-      setCurrentPage(JSON.parse(savedUser).isAdmin ? 'admin' : 'dashboard');
-    }
-    setLoading(false);
-  }, []);
-
-  const handleLogin = (userData) => {
-    setUser(userData);
-    setCurrentPage(userData.isAdmin ? 'admin' : 'dashboard');
+// Protected Route wrapper
+function ProtectedRoute({ children, user, requiredAdmin = false }) {
+  if (!user) {
+    return <Navigate to="/login" replace />;
   };
-
-  const handleLogout = async () => {
-    await api.logout();
-    setUser(null);
-    setCurrentPage('login');
+  if (requiredAdmin && !user.isAdmin) {
+    return <Navigate to="/dashboard" replace />;
   };
+  return children;
+};
 
-  const handleNavigate = (page) => {
-    setCurrentPage(page);
-  };
+
+
+function AppContent({ user, loading, onLogin, onLogout }) {
+  const navigate = useNavigate();
 
   if (loading) {
     return <div className="loading">Loading...</div>;
   }
+
+  
 
   return (
     <div className="app">
@@ -58,19 +45,19 @@ function App() {
               <nav className="nav">
                 {user.isAdmin && (
                   <button
-                    className={`nav-btn ${currentPage === 'admin' ? 'active' : ''}`}
-                    onClick={() => handleNavigate('admin')}
+                    className="nav-btn"
+                    onClick={() => navigate('/admin')}
                   >
                     Admin
                   </button>
                 )}
                 <button
-                  className={`nav-btn ${currentPage === 'dashboard' ? 'active' : ''}`}
-                  onClick={() => handleNavigate('dashboard')}
+                  className="nav-btn"
+                  onClick={() => navigate('/dashboard')}
                 >
                   Dashboard
                 </button>
-                <button className="nav-btn logout-btn" onClick={handleLogout}>
+                <button className="nav-btn logout-btn" onClick={onLogout}>
                   Logout
                 </button>
               </nav>
@@ -80,23 +67,93 @@ function App() {
       )}
 
       <main className="main-content">
-        {currentPage === 'login' && (
-          <Login
-            onLoginSuccess={handleLogin}
-            onSwitchToRegister={() => setCurrentPage('register')}
+        <Routes>
+          <Route
+            path="/login"
+            element={
+              user ? (
+                <Navigate to={user.isAdmin ? '/admin' : '/dashboard'} replace />
+              ) : (
+                <Login
+                  onLoginSuccess={onLogin}
+                  onSwitchToRegister={() => navigate('/register')}
+                />
+              )
+            }
           />
-        )}
-        {currentPage === 'register' && (
-          <Register onSwitchToLogin={() => setCurrentPage('login')} />
-        )}
-        {currentPage === 'dashboard' && user && (
-          <Dashboard user={user} onLogout={handleLogout} />
-        )}
-        {currentPage === 'admin' && user?.isAdmin && (
-          <AdminDashboard />
-        )}
+          <Route
+            path="/register"
+            element={
+              user ? (
+                <Navigate to={user.isAdmin ? '/admin' : '/dashboard'} replace />
+              ) : (
+                <Register onSwitchToLogin={() => navigate('/login')} />
+              )
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute user={user}>
+                <Dashboard user={user} onLogout={onLogout} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute user={user} requiredAdmin={true}>
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/"
+            element={
+              user ? (
+                <Navigate to={user.isAdmin ? '/admin' : '/dashboard'} replace />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
+          />
+        </Routes>
       </main>
     </div>
+  );
+}
+
+function App() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Check if user is already logged in
+    const token = localStorage.getItem('authToken');
+    const savedUser = localStorage.getItem('user');
+
+    if (token && savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+    setLoading(false);
+  }, []);
+
+  const handleLogin = (userData) => {
+    setUser(userData);
+  };
+
+  const handleLogout = async () => {
+    await api.logout();
+    setUser(null);
+  };
+
+  return (
+    <AppContent
+      user={user}
+      loading={loading}
+      onLogin={handleLogin}
+      onLogout={handleLogout}
+    />
   );
 }
 

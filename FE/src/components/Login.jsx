@@ -86,9 +86,19 @@ export default function Login({ onLoginSuccess, onSwitchToRegister }) {
               />
             </div>
 
-            <button type="submit" className="btn-primary" disabled={loading}>
-              {loading ? 'Logging in...' : 'Login'}
-            </button>
+            <div className="auth-actions">
+              <button type="submit" className="btn-primary" disabled={loading}>
+                {loading ? 'Logging in...' : 'Login'}
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={onSwitchToRegister}
+                disabled={loading}
+              >
+                Create account
+              </button>
+            </div>
           </form>
 
           <p className="auth-switch">
